@@ -25,6 +25,31 @@ The logic is based on some basic principles:
         - This category contributed more sign-up money
 
 """
+# %% OPTIONAL: One-shot data scraping and parsing (guarded)
+# Set to True to run the scraper and parser once from this script.
+# This is intentionally off by default because scraping is network- and time- consuming.
+RUN_SCRAPE_AND_PARSE = False
+
+if RUN_SCRAPE_AND_PARSE:
+    import time
+    # Import the one-shot entry points from the local modules
+    # These modules live in the same directory as this script.
+    from scrape import scrape_all
+    from parse_player_table import parse_all
+
+    # Run the scrape (writes HTML files under ./scrapes/)
+    print("Starting one-shot scrape...")
+    scrape_all()
+
+    # Parse the scraped HTML into a player table CSV
+    print("Parsing scraped pages into player table...")
+    df = parse_all()
+    timestamp = int(time.time())
+    out_path = f"player_table_{timestamp}.csv"
+    df.write_csv(out_path)
+    print(f"One-shot scrape & parse complete. Wrote {out_path}")
+
+
 
 # %% Checking rank distributions
 """
@@ -34,6 +59,7 @@ As of reason 1. we want this weight to be higher for higher ranked players.
 
 One idea is to have the pariticpant weight depend inversely on the amount of players that have this rank in the overall population. We investigate:
 """
+from plotly.io import renderers
 import polars as pl
 
 playertablepath = "./player_table_1774367183.csv"
@@ -53,7 +79,8 @@ import plotly.express as px
 # pio.renderers.default = 'notebook'
 fig = px.histogram(dfplayer, x="rank", facet_row="discipline", height=1200)
 fig.update_yaxes(matches=None)  # Allow independent y-axis scales for each subplot
-fig.write_html("./histogram.html")
+fig.write_html("./histogram.html", auto_open=True)
+
 # fig.show()
 
 # Calculate the ratio of each rank within each discipline

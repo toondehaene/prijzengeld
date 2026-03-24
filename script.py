@@ -76,13 +76,13 @@ rank_ratio_by_discipline = (
 WHY LOG SCALING? --> open for debate btw
 Since the ranks come from an Elo-like system, log scaling for weight calculation makes sense.
 In Elo, the probability of winning follows an exponential relationship with rating difference; a 400-point gap always means about 90% win probability,
-so skill differences grow exponentially, not linearly. When we invert the frequency of each rank (`1/ratio`) to weight rarer ranks higher, 
-we're working with something that already has exponential structure. 
-Without the log, a rank with 0.1% of players gets valued 1000× higher than a 10% rank, 
-even though Elo treats these differences less drastically. 
-Taking the log of the inverse frequency brings the weight scaling in line with how Elo's exponential skill progression actually works; 
-a rank that's 10× rarer gets weighted logarithmically higher, 
-which reflects how much harder it is to beat players at that level according to Elo's math. 
+so skill differences grow exponentially, not linearly. When we invert the frequency of each rank (`1/ratio`) to weight rarer ranks higher,
+we're working with something that already has exponential structure.
+Without the log, a rank with 0.1% of players gets valued 1000× higher than a 10% rank,
+even though Elo treats these differences less drastically.
+Taking the log of the inverse frequency brings the weight scaling in line with how Elo's exponential skill progression actually works;
+a rank that's 10× rarer gets weighted logarithmically higher,
+which reflects how much harder it is to beat players at that level according to Elo's math.
 This way, prize allocation respects both how many people signed up and how much more difficult it actually is to win at higher ranks.
 """
 rank_ratio_by_discipline.filter(pl.col("rank").eq(1) | pl.col("rank").eq(12))
@@ -106,12 +106,29 @@ dfdijlevallei_weighted = (
     .with_columns(
         (pl.col("participants") * pl.col("weight")).alias("weight_per_category")
     )
+    # Classify disciplines by gender
     .with_columns(
-        (pl.col("weight_per_category") / pl.col("weight_per_category").sum()).alias(
-            "normalized_weight"
-        )
+        pl.when(pl.col("discipline").is_in(["MS", "MD", "XDM"]))
+        .then(pl.lit("male"))
+        .when(pl.col("discipline").is_in(["WS", "WD", "XDW"]))
+        .then(pl.lit("female"))
+        .alias("gender")
     )
-    .with_columns((pl.col("normalized_weight") * 2500).alias("price_money"))
+    # Normalize weights within each gender group
+    .with_columns(
+        (
+            pl.col("weight_per_category")
+            / pl.col("weight_per_category").sum().over("gender")
+        ).alias("normalized_weight_per_gender")
+    )
+    # Allocate budget: 1250 euros per gender
+    .with_columns(
+        pl.when(pl.col("gender") == "male")
+        .then(pl.col("normalized_weight_per_gender") * 1250)
+        .when(pl.col("gender") == "female")
+        .then(pl.col("normalized_weight_per_gender") * 1250)
+        .alias("price_money")
+    )
 )
 
 # Group XDM and XDW by rank as they share the mixed doubles prize pool
@@ -132,7 +149,18 @@ dfdijlevallei_weighted = (
     .sort("discipline", "rank")
 )
 
+# Round price_money towards its mean (subtract mean, round to zero, add back)
+dfdijlevallei_weighted = dfdijlevallei_weighted.with_columns(
+    (
+        pl.col("price_money").mean().cast(pl.Int64)
+        + (
+            pl.col("price_money") - pl.col("price_money").mean().cast(pl.Int64)
+        ).truncate(0)
+    ).alias("price_money")
+)
+
 dfdijlevallei_weighted.write_csv("dijlevallei_26_calculated.csv")
+print(f"total money to hand out: {dfdijlevallei_weighted.sum().get_column("price_money").item()}")
 dfdijlevallei_weighted
 
 

@@ -1,3 +1,4 @@
+# %%
 """
 This script generates fair prize money per category, which is the combination of a dicipline (MS WS MD WD WXD MXD) and a rank (1-12)
 

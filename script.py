@@ -1,25 +1,25 @@
 """
-This script generates fair price money per category, which is the combination of a dicipline (MS WS MD WD WXD MXD) and a rank (1-12)
+This script generates fair prize money per category, which is the combination of a dicipline (MS WS MD WD WXD MXD) and a rank (1-12)
 
 The logic is based on some basic principles:
 
-    1. Higher ranked players should get more price money
+    1. Higher ranked players should get more prize money
         arguments:
         - Not really an argument but just an observation: every sport / competition does it like this, it probably has a good reason.
         - If the goal is to promote people to become better badminton players, it makes sense to reward winning higher ranks more.
         - Better players invest more into becoming better, therefore it's fair they earn more.
         - ... (you can probably write a whole essay about this).
 
-    2. The same total price money should go to women as to men
+    2. The same total prize money should go to women as to men
         arguments:
         - People can't influence which gender they allign most with.
         - Approximately 50% of the general population is either man or woman.
 
-    3. A club can assign a total budget for the price money
+    3. A club can assign a total budget for the prize money
         arguments:
         - Clubs want to make sure not to run a deficit.
 
-    4. The more people participate in a category, the more price money
+    4. The more people participate in a category, the more prize money
         arguments:
         - The winner had to beat more opponents
         - This category contributed more sign-up money
@@ -154,7 +154,7 @@ dfdijlevallei_weighted = (
         .then(pl.col("normalized_weight_per_gender") * 1250)
         .when(pl.col("gender") == "female")
         .then(pl.col("normalized_weight_per_gender") * 1250)
-        .alias("price_money")
+        .alias("prize_money")
     )
 )
 
@@ -170,24 +170,24 @@ dfdijlevallei_weighted = (
     .agg(
         pl.col("participants").sum().alias("participants"),
         pl.col("weight").first().alias("weight"),
-        pl.col("price_money").sum().alias("price_money"),
+        pl.col("prize_money").sum().alias("prize_money"),
     )
     .rename({"discipline_grouped": "discipline"})
     .sort("discipline", "rank")
 )
 
-# Round price_money towards its mean (subtract mean, round to zero, add back)
+# Round prize_money towards its mean (subtract mean, round to zero, add back)
 dfdijlevallei_weighted = dfdijlevallei_weighted.with_columns(
     (
-        pl.col("price_money").mean().cast(pl.Int64)
+        pl.col("prize_money").mean().cast(pl.Int64)
         + (
-            pl.col("price_money") - pl.col("price_money").mean().cast(pl.Int64)
+            pl.col("prize_money") - pl.col("prize_money").mean().cast(pl.Int64)
         ).truncate(0)
-    ).alias("price_money")
+    ).alias("prize_money")
 )
 
 dfdijlevallei_weighted.write_csv("dijlevallei_26_calculated.csv")
-print(f"total money to hand out: {dfdijlevallei_weighted.sum().get_column("price_money").item()}")
+print(f"total money to hand out: {dfdijlevallei_weighted.sum().get_column("prize_money").item()}")
 dfdijlevallei_weighted
 
 

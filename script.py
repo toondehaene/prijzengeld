@@ -26,6 +26,7 @@ The logic is based on some basic principles:
         - This category contributed more sign-up money
 
 """
+
 # %% OPTIONAL: One-shot data scraping and parsing (guarded)
 # Set to True to run the scraper and parser once from this script.
 # This is intentionally off by default because scraping is network- and time- consuming.
@@ -33,10 +34,12 @@ RUN_SCRAPE_AND_PARSE = False
 
 if RUN_SCRAPE_AND_PARSE:
     import time
+
+    from parse_player_table import parse_all
+
     # Import the one-shot entry points from the local modules
     # These modules live in the same directory as this script.
     from scrape import scrape_all
-    from parse_player_table import parse_all
 
     # Run the scrape (writes HTML files under ./scrapes/)
     print("Starting one-shot scrape...")
@@ -51,7 +54,6 @@ if RUN_SCRAPE_AND_PARSE:
     print(f"One-shot scrape & parse complete. Wrote {out_path}")
 
 
-
 # %% Checking rank distributions
 """
 As of reason 3. we want a system where each category gets a weight and based on that weight a proportion of the total budget is assigned.
@@ -60,8 +62,8 @@ As of reason 1. we want this weight to be higher for higher ranked players.
 
 One idea is to have the pariticpant weight depend inversely on the amount of players that have this rank in the overall population. We investigate:
 """
-from plotly.io import renderers
 import polars as pl
+from plotly.io import renderers
 
 playertablepath = "./player_table_1774367183.csv"
 
@@ -96,6 +98,8 @@ rank_ratio_by_discipline = (
     [
         pl.lit(1.0)
         .truediv(pl.col("ratio"))
+        # log base number DOES NOT MATTER for end result.
+        # We do log(1+x) for numeric stability because I can't be asked to deal with it
         .log1p()
         .alias("weight")  # TODO tune this formula, use log / sqrt normalization?
     ]
@@ -188,8 +192,10 @@ dfdijlevallei_weighted = dfdijlevallei_weighted.with_columns(
 )
 
 dfdijlevallei_weighted.write_csv("dijlevallei_26_calculated.csv")
-print(f"total money to hand out: {dfdijlevallei_weighted.sum().get_column("prize_money").item()}")
-dfdijlevallei_weighted
+print(
+    f"total money to hand out: {dfdijlevallei_weighted.sum().get_column('prize_money').item()}"
+)
+print(dfdijlevallei_weighted)
 
 
 # %%
